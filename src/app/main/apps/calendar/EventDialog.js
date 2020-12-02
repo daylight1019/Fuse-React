@@ -16,6 +16,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import Select from '@material-ui/core/Select';
 import MenuItem from '@material-ui/core/MenuItem';
 import InputLabel from '@material-ui/core/InputLabel';
+import { makeStyles } from '@material-ui/core/styles';
 import { removeEvent, updateEvent, addEvent, closeNewEventDialog, closeEditEventDialog } from './store/eventsSlice';
 
 import TimeSlotList from './TimeSlotList';
@@ -30,10 +31,19 @@ const defaultFormState = {
 	desc: ''
 };
 
+const useStyles = makeStyles(theme => ({
+	sepLine: {
+		height: '1px',
+		border: '1px solid #e0e0e0',
+		marginBottom: 5
+	}
+}));
+
 function EventDialog(props) {
 	const dispatch = useDispatch();
 	const eventDialog = useSelector(({ calendarApp }) => calendarApp.events.eventDialog);
 	const { form, handleChange, setForm, setInForm } = useForm(defaultFormState);
+	const classes = useStyles(props);
 
 	const initDialog = useCallback(() => {
 		/**
@@ -92,6 +102,42 @@ function EventDialog(props) {
 		return { color: 'white', backgroundColor: type === 'new' ? '#0C70C0' : '#FE7A7B' };
 	}
 
+	function changeSlot(checked) {
+		checked.sort();
+		const selDay1 = moment(form.day, 'YYYY-MM-DD').toDate();
+		const selDay2 = moment(form.day, 'YYYY-MM-DD').toDate();
+		selDay1.setHours(moment(checked[0], 'HH:mm').toDate().getHours());
+		selDay1.setMinutes(moment(checked[0], 'HH:mm').toDate().getMinutes());
+		setInForm('start', selDay1);
+		selDay2.setHours(
+			moment(checked[checked.length - 1], 'HH:mm')
+				.toDate()
+				.getHours()
+		);
+		selDay2.setMinutes(
+			moment(checked[checked.length - 1], 'HH:mm')
+				.toDate()
+				.getMinutes()
+		);
+		// eslint-disable-next-line no-unused-expressions
+		if (selDay2.getMinutes() < 30) selDay2.setMinutes(30);
+		else {
+			selDay2.setHours(selDay2.getHours() + 1);
+			selDay2.setMinutes(0);
+		}
+		setInForm('end', selDay2);
+	}
+
+	function changeStartTime(val) {
+		setInForm('start', val);
+		if (val > form.end) setInForm('end', val);
+	}
+
+	function changeEndTime(val) {
+		setInForm('end', val);
+		if (val < form.start) setInForm('start', val);
+	}
+
 	return (
 		<Dialog
 			{...eventDialog.props}
@@ -131,7 +177,6 @@ function EventDialog(props) {
 					<Select
 						labelId="demo-simple-select-label"
 						id="title"
-						label="類別"
 						className="mt-8 mb-16 w-full"
 						value={form.title}
 						name="title"
@@ -157,7 +202,7 @@ function EventDialog(props) {
 							label="开始時間"
 							inputVariant="outlined"
 							value={form.start}
-							onChange={date => setInForm('start', date)}
+							onChange={changeStartTime}
 							className="mt-8 mb-16"
 							maxDate={form.end}
 						/>
@@ -166,7 +211,7 @@ function EventDialog(props) {
 							label="結始時間"
 							inputVariant="outlined"
 							value={form.end}
-							onChange={date => setInForm('end', date)}
+							onChange={changeEndTime}
 							className="mt-8 mb-16"
 							minDate={form.start}
 						/>
@@ -176,7 +221,9 @@ function EventDialog(props) {
 						<MenuItem value="1">香港眼科醫院</MenuItem>
 					</Select>
 
-					<TimeSlotList start={form.start} end={form.end} />
+					<div className={classes.sepLine} />
+
+					<TimeSlotList start={form.start} end={form.end} changeSlot={changeSlot}/>
 				</DialogContent>
 
 				{eventDialog.type === 'new' ? (
